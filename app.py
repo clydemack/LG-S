@@ -1,75 +1,84 @@
 from flask import Flask, request, render_template_string
+import openai
 import os
 
 app = Flask(__name__)
+openai.api_key = os.getenv("OPENAI_API_KEY")
+
+html = """
+<!DOCTYPE html>
+<html>
+<head>
+    <title>AI Query</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background-color: #f9f9f9;
+        }
+        h2 {
+            text-align: center;
+        }
+        form {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        input[type="text"] {
+            width: 80%%;
+            padding: 10px;
+            font-size: 16px;
+        }
+        input[type="submit"] {
+            margin-top: 10px;
+            padding: 10px 20px;
+            font-size: 16px;
+            display: inline-block;
+        }
+        .response-box {
+            background-color: #f1f2f2;
+            padding: 20px;
+            margin: auto;
+            max-width: 90%%;
+            word-wrap: break-word;
+            white-space: pre-wrap;
+        }
+        @media (max-width: 600px) {
+            input[type="text"] {
+                width: 95%%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h2>Type a search query:</h2>
+    <form method="POST">
+        <input type="text" name="query" placeholder="e.g. best SEO company in Austin">
+        <br>
+        <input type="submit" value="Submit">
+    </form>
+    {% if response %}
+    <div class="response-box">
+        <strong>Response:</strong><br><br>{{ response }}
+    </div>
+    {% endif %}
+</body>
+</html>
+"""
 
 @app.route("/", methods=["GET", "POST"])
 def home():
-    response = ""
+    response_text = ""
     if request.method == "POST":
-        query = request.form.get("query")
-        response = f"You searched for: {query}"
-
-    return render_template_string("""
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <title>AI Search Demo</title>
-        <style>
-            body {
-                font-family: Arial, sans-serif;
-                background-color: #ccc;
-                margin: 40px;
-            }
-            .container {
-                max-width: 800px;
-                margin: auto;
-                background-color: #d3cdca;
-                padding: 20px;
-                box-shadow: 0px 0px 8px #888;
-                border-radius: 6px;
-            }
-            h2 {
-                text-align: center;
-            }
-            form {
-                text-align: center;
-            }
-            input[type="text"] {
-                width: 90%;
-                padding: 12px;
-                font-size: 16px;
-                margin-bottom: 12px;
-            }
-            input[type="submit"] {
-                padding: 10px 20px;
-                font-size: 16px;
-                cursor: pointer;
-            }
-            .response {
-                margin-top: 20px;
-                font-size: 18px;
-                text-align: center;
-                font-weight: bold;
-            }
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            <h2>Type a search query:</h2>
-            <form method="POST">
-                <input type="text" name="query" required>
-                <br>
-                <input type="submit" value="Submit">
-            </form>
-            {% if response %}
-                <div class="response">{{ response }}</div>
-            {% endif %}
-        </div>
-    </body>
-    </html>
-    """, response=response)
+        query = request.form["query"]
+        completion = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "You are a helpful assistant for search optimization."},
+                {"role": "user", "content": query}
+            ]
+        )
+        response_text = completion.choices[0].message["content"]
+    return render_template_string(html, response=response_text)
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 10000))
-    app.run(host="0.0.0.0", port=port)
+    app.run(host="0.0.0.0", port=10000)
